@@ -100,6 +100,46 @@ def get_tax_name_for_taxid(taxid, *, verbose=False, quiet=False):
     return notags
 
 
+def get_genome_info(ident, *, verbose=False, quiet=False):
+        genome_url, assembly_report_url = url_for_accession(ident,
+                                                            verbose=verbose,
+                                                            quiet=quiet)
+        taxid = get_taxid_from_assembly_report(assembly_report_url,
+                                               verbose=verbose,
+                                               quiet=quiet)
+        tax_name = get_tax_name_for_taxid(taxid,
+                                          verbose=verbose,
+                                          quiet=quiet)
+
+        d = dict(
+            ident=ident,
+            genome_url=genome_url,
+            assembly_report_url=assembly_report_url,
+            display_name=tax_name,
+        )
+
+        return d
+
+
+def download_genome(info_d, *, output_filename=None, output_directory=None,
+                    verbose=False, quiet=False):
+    ident = info_d['ident']
+    genome_url = info_d['genome_url']
+    up = urlparse(genome_url)
+
+    if not output_filename:
+        outfilename = f"{ident}.genomic.fna.gz"
+    if output_directory:
+        outfilename = os.path.join(output_directory, outfilename)
+
+    with urllib.request.urlopen(genome_url) as response:
+        content = response.read()
+        if not quiet:
+            print(f"writing genome to '{outfilename}'", file=sys.stderr)
+        with open(outfilename, 'wb') as outfp:
+            outfp.write(content)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("accessions", nargs='*')
@@ -152,26 +192,13 @@ def main():
     for ident in accessions:
         if not args.quiet:
             print(f"starting work on '{ident}'", file=sys.stderr)
-        genome_url, assembly_report_url = url_for_accession(ident,
-                                                            verbose=args.verbose,
-                                                            quiet=args.quiet)
-        taxid = get_taxid_from_assembly_report(assembly_report_url,
-                                               verbose=args.verbose,
-                                               quiet=args.quiet)
-        tax_name = get_tax_name_for_taxid(taxid,
-                                          verbose=args.verbose,
-                                          quiet=args.quiet)
 
-        d = dict(
-            ident=ident,
-            genome_url=genome_url,
-            assembly_report_url=assembly_report_url,
-            display_name=tax_name,
-        )
-        acc_info.append(d)
+        info_d = get_genome_info(ident, verbose=args.verbose,
+                                 quiet=args.quiet)
+        acc_info.append(info_d)
 
         if not args.quiet:
-            print(f"info retrieved for {ident} - {tax_name}", file=sys.stderr)
+            print(f"info retrieved for {ident} - {info_d['display_name']}", file=sys.stderr)
 
     # initialize output CSV, if desired
     if args.csv:
@@ -192,6 +219,8 @@ def main():
             pass
 
         for info_d in acc_info:
+            download_genome(info_d, output_directory=args.output_directory,
+                            verbose=args.verbose, quiet=args.quiet)
             ident = info_d['ident']
             genome_url = info_d['genome_url']
             up = urlparse(genome_url)
@@ -212,16 +241,36 @@ def main():
 # CLI plugin for sourmash - supports 'sourmash scripts get-genomes'
 #
 
-class Command_XYZ(CommandLinePlugin):
+class Command_DownloadNCBI(CommandLinePlugin):
     command = 'get-genomes'
-    description = "retrieve one or more NCBI Genomes"
+    description = "retrieve one or more NCBI genomes"
 
     def __init__(self, subparser):
         super().__init__(subparser)
         # add argparse arguments here.
-        debug_literal('RUNNING cmd_xyz.__init__')
+        subparser.add_argument('accessions', nargs='+')
+        subparser.add_argument('--output-directory', default=None,
+                               help="directory to save genomes")
 
     def main(self, args):
         # code that we actually run.
         super().main(args)
-        print('RUNNING cmd', self, args)
+        for ident in args.accessions:
+            info_d = get_genome_info(ident, verbose=args.debug,
+                                     quiet=args.quiet)
+
+            csv_out = f"{ident}.info.csv"
+            if args.output_directory:
+                csv_out = os.path.join(args.output_directory, csv_out)
+
+            if not args.quiet:
+                print(f"writing CSV output to '{csv_out}'", file=sys.stderr)
+            fieldnames = ["ident", "genome_url", "assembly_report_url", "display_name"]
+            with open(csv_out, "w", newline="") as fp:
+                w = csv.DictWriter(fp, fieldnames=fieldnames)
+                w.writeheader()
+                w.writerow(info_d)
+
+            download_genome(info_d, output_directory=args.output_directory,
+                            verbose=args.debug, quiet=args.quiet)
+            
