@@ -192,6 +192,7 @@ def main():
             pass
 
         for info_d in acc_info:
+            ident = info_d['ident']
             genome_url = info_d['genome_url']
             up = urlparse(genome_url)
             outfilename = f"{ident}.genomic.fna.gz"
