@@ -1,7 +1,9 @@
 # @CTB document me!
 import sys
+import os
 import argparse
 import urllib.request
+from urllib.parse import urlparse
 import csv
 
 import sourmash
@@ -100,17 +102,54 @@ def get_tax_name_for_taxid(taxid, *, verbose=False, quiet=False):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("accessions", nargs='+')
-    p.add_argument("-o", "--output", default=None,
-                   help='output CSV')
+    p.add_argument("accessions", nargs='*')
+    p.add_argument("--from-file", help="load accessions from this file")
+    p.add_argument("--csv", default=None,
+                   help='output CSV information about genome')
+    p.add_argument("--output-directory", help="save output files here")
+    p.add_argument("-G", "--download-genomes", action='store_true',
+                   help="download genome files")
     p.add_argument("-v", "--verbose", action='store_true',
                    help='turn on verbose reporting')
     p.add_argument("-q", "--quiet", action='store_true',
                    help='turn off non-error output')
     args = p.parse_args()
 
+    accessions = list(args.accessions)
+    if args.from_file:
+        with open(args.from_file, 'rt') as fp:
+            acclines = [ x.strip() for x in fp if x.strip() ]
+
+        if not args.quiet:
+            print(f"loaded {len(acclines)} accessions from '{args.from_file}'",
+                  file=sys.stderr)
+        accessions.extend(acclines)
+
+    # remove redundancy
+    accessions = set(accessions)
+
+    # check input arguments
+    if not accessions:
+        print(f"error - no accessions given on command line or in from-file",
+              file=sys.stderr)
+        sys.exit(-1)
+
+    # check output arguments
+    errexit = False
+    if not args.download_genomes and not args.csv:
+        print(f"no output information given!? consider -G/--download-genomes and/or --csv", file=sys.stderr)
+        errexit = True
+    if args.download_genomes and not args.output_directory:
+        print(f"-G/--download-genomes given, but no output directory.")
+        errexit = True
+
+    if errexit:
+        sys.exit(-1)
+
+    ### ok! in good shape! go forth and NCBI!
+
     acc_info = []
-    for ident in args.accessions:
+    for ident in accessions:
         if not args.quiet:
             print(f"starting work on '{ident}'", file=sys.stderr)
         genome_url, assembly_report_url = url_for_accession(ident,
@@ -134,16 +173,36 @@ def main():
         if not args.quiet:
             print(f"info retrieved for {ident} - {tax_name}", file=sys.stderr)
 
-    # initialize output, if desired
-    if args.output:
+    # initialize output CSV, if desired
+    if args.csv:
         if not args.quiet:
-            print(f"writing CSV output to '{args.output}'", file=sys.stderr)
+            print(f"writing CSV output to '{args.csv}'", file=sys.stderr)
         fieldnames = ["ident", "genome_url", "assembly_report_url", "display_name"]
-        with open(args.output, "w", newline="") as fp:
+        with open(args.csv, "w", newline="") as fp:
             w = csv.DictWriter(fp, fieldnames=fieldnames)
             w.writeheader()
             for info_d in acc_info:
                 w.writerow(info_d)
+
+    # save genomes?
+    if args.download_genomes:
+        try:
+            os.mkdir(args.output_directory)
+        except FileExistsError:
+            pass
+
+        for info_d in acc_info:
+            genome_url = info_d['genome_url']
+            up = urlparse(genome_url)
+            outfilename = f"{ident}.genomic.fna.gz"
+            outfilename = os.path.join(args.output_directory, outfilename)
+
+            with urllib.request.urlopen(genome_url) as response:
+                content = response.read()
+                if not args.quiet:
+                    print(f"writing to '{outfilename}'", file=sys.stderr)
+                with open(outfilename, 'wb') as outfp:
+                    outfp.write(content)
 
     return 0
 
