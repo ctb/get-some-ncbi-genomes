@@ -14,4 +14,4 @@ license = { text = "BSD 3-Clause License" }
 "get-some-ncbi-genomes" = "get_some_ncbi_genomes:main"
 
 [project.entry-points."sourmash.cli_script"]
-xyz_command = "get_some_ncbi_genomes:Command_DownloadNCBI"
+download_ncbi = "get_some_ncbi_genomes:Command_DownloadNCBI"
