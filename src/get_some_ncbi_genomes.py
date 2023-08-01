@@ -1,4 +1,17 @@
-# @CTB document me!
+"""\
+download one or more NCBI genomes + associated taxonomic info
+"""
+
+usage="""
+sourmash scripts get-genomes <accession>
+"""
+
+epilog="""
+See https://github.com/ctb/get-some-ncbi-genomes for more examples.
+
+Need help? Have questions? Ask at http://github.com/sourmash/issues!
+"""
+
 import sys
 import os
 import argparse
@@ -243,7 +256,10 @@ def main():
 
 class Command_DownloadNCBI(CommandLinePlugin):
     command = 'get-genomes'
-    description = "retrieve one or more NCBI genomes"
+    description = __doc__
+    usage = usage
+    epilog = epilog
+    formatter_class = argparse.RawTextHelpFormatter
 
     def __init__(self, subparser):
         super().__init__(subparser)
