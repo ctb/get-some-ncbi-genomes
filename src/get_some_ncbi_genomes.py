@@ -141,7 +141,7 @@ def download_genome(info_d, *, output_filename=None, output_directory=None,
     up = urlparse(genome_url)
 
     if not output_filename:
-        outfilename = f"{ident}.genomic.fna.gz"
+        outfilename = f"{ident}_genomic.fna.gz"
     if output_directory:
         outfilename = os.path.join(output_directory, outfilename)
 
@@ -237,7 +237,7 @@ def main():
             ident = info_d['ident']
             genome_url = info_d['genome_url']
             up = urlparse(genome_url)
-            outfilename = f"{ident}.genomic.fna.gz"
+            outfilename = f"{ident}_genomic.fna.gz"
             outfilename = os.path.join(args.output_directory, outfilename)
 
             with urllib.request.urlopen(genome_url) as response:
@@ -271,6 +271,8 @@ class Command_DownloadNCBI(CommandLinePlugin):
     def main(self, args):
         # code that we actually run.
         super().main(args)
+
+        did_fail = False
         for ident in args.accessions:
             info_d = get_genome_info(ident, verbose=args.debug,
                                      quiet=args.quiet)
@@ -287,6 +289,13 @@ class Command_DownloadNCBI(CommandLinePlugin):
                 w.writeheader()
                 w.writerow(info_d)
 
-            download_genome(info_d, output_directory=args.output_directory,
-                            verbose=args.debug, quiet=args.quiet)
-            
+            try:
+                download_genome(info_d, output_directory=args.output_directory,
+                                verbose=args.debug, quiet=args.quiet)
+            except urllib.error.HTTPError:
+                print(f'cannot get corresponding genome file for {ident}; send help.',
+                      file=sys.stderr)
+                did_fail = True
+
+        if did_fail:
+            return 1

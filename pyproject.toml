@@ -3,9 +3,9 @@ name = "get-some-ncbi-genomes"
 description = "download one or more NCBI genomes by accession"
 readme = "README.md"
 requires-python = ">=3.8"
-version = "0.2"
+version = "0.3"
 
-dependencies = ["sourmash>=4.8.0,<5", "lxml==4.9.3"]
+dependencies = ["sourmash>=4.9.0,<5", "lxml==5.3.1"]
 
 [metadata]
 license = { text = "BSD 3-Clause License" }

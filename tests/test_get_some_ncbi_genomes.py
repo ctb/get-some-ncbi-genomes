@@ -27,4 +27,4 @@ def test_run_sourmash_plugin(runtmp):
     assert runtmp.last_result.status == 0
 
     assert os.path.exists(runtmp.output('GCA_002440745.1.info.csv'))
-    assert os.path.exists(runtmp.output('GCA_002440745.1.genomic.fna.gz'))
+    assert os.path.exists(runtmp.output('GCA_002440745.1_genomic.fna.gz'))
