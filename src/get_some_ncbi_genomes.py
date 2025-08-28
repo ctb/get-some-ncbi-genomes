@@ -123,6 +123,8 @@ def get_genome_info(ident, *, verbose=False, quiet=False):
         tax_name = get_tax_name_for_taxid(taxid,
                                           verbose=verbose,
                                           quiet=quiet)
+        if tax_name == '':
+            tax_name = ident
 
         d = dict(
             ident=ident,
