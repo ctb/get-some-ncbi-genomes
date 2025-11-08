@@ -3,7 +3,7 @@ name = "get-some-ncbi-genomes"
 description = "download one or more NCBI genomes by accession"
 readme = "README.md"
 requires-python = ">=3.11"
-version = "0.3.3"
+version = "0.3.4"
 
 dependencies = ["sourmash>=4.9.0,<5", "lxml>=6.0.1,<7"]
 
