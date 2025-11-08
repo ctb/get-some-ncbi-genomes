@@ -147,6 +147,10 @@ def download_genome(info_d, *, output_filename=None, output_directory=None,
     if output_directory:
         outfilename = os.path.join(output_directory, outfilename)
 
+    if os.path.exists(outfilename):
+        print(f"genome for {ident} already exists; not downloading.")
+        return
+
     with urllib.request.urlopen(genome_url) as response:
         content = response.read()
         if not quiet:
@@ -168,6 +172,8 @@ def main():
                    help='turn on verbose reporting')
     p.add_argument("-q", "--quiet", action='store_true',
                    help='turn off non-error output')
+    p.add_argument("--do-fail", action='store_true',
+                   help='fail exit if download fails; otherwise, continnue')
     args = p.parse_args()
 
     accessions = list(args.accessions)
@@ -234,20 +240,12 @@ def main():
             pass
 
         for info_d in acc_info:
-            download_genome(info_d, output_directory=args.output_directory,
-                            verbose=args.verbose, quiet=args.quiet)
-            ident = info_d['ident']
-            genome_url = info_d['genome_url']
-            up = urlparse(genome_url)
-            outfilename = f"{ident}_genomic.fna.gz"
-            outfilename = os.path.join(args.output_directory, outfilename)
-
-            with urllib.request.urlopen(genome_url) as response:
-                content = response.read()
-                if not args.quiet:
-                    print(f"writing to '{outfilename}'", file=sys.stderr)
-                with open(outfilename, 'wb') as outfp:
-                    outfp.write(content)
+            try:
+                download_genome(info_d, output_directory=args.output_directory,
+                                verbose=args.verbose, quiet=args.quiet)
+            except urllib.error.HTTPError:
+                print(f'ERROR, cannot download {info_d}')
+                continue
 
     return 0
 
@@ -299,5 +297,6 @@ class Command_DownloadNCBI(CommandLinePlugin):
                       file=sys.stderr)
                 did_fail = True
 
-        if did_fail:
+        if did_fail and args.do_fail:
             return 1
+        return 0
